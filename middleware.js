@@ -59,11 +59,17 @@ export default async function middleware(request) {
       `window.__ENV__.ADMINPASSWORD = "${adminpasswordHash}"; // SHA-256 hash`
     );
 
-  // 修复Response构造
+  // 修复Response构造：不要原样透传上游响应头，content-length/content-encoding 与修改后的正文不符，
+  // 会导致浏览器解码失败或一直等待；只返回干净的响应头，让边缘运行时自行生成正确的长度与编码
   return new Response(modifiedHtml, {
     status: response.status,
     statusText: response.statusText,
-    headers: response.headers
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+    },
   });
 }
 
