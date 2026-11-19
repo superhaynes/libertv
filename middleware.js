@@ -45,24 +45,25 @@ export default async function middleware(request) {
   const adminpassword = process.env.ADMINPASSWORD || '';
   let adminpasswordHash = '';
   if (adminpassword) {
-    adminpasswordHash = await sha256(adminpassword);
+    adminpasswordHash = await sha256(adminpassword); // 修复变量名
   }
 
   // 合并两次替换为一次操作
-  const modifiedHtml = originalHtml
-    .replace('{{PASSWORD_HASH}}', passwordHash)
-    .replace('{{ADMINPASSWORD_HASH}}', adminpasswordHash);
+  let modifiedHtml = originalHtml
+    .replace(
+      'window.__ENV__.PASSWORD = "{{PASSWORD}}";',
+      `window.__ENV__.PASSWORD = "${passwordHash}"; // SHA-256 hash`
+    )
+    .replace(
+      'window.__ENV__.ADMINPASSWORD = "{{ADMINPASSWORD}}";',
+      `window.__ENV__.ADMINPASSWORD = "${adminpasswordHash}"; // SHA-256 hash`
+    );
 
   // 修复Response构造
   return new Response(modifiedHtml, {
     status: response.status,
     statusText: response.statusText,
-    headers: {
-      'Content-Type': 'text/html; charset=utf-8',
-      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
-      Pragma: 'no-cache',
-      Expires: '0'
-    },
+    headers: response.headers
   });
 }
 
