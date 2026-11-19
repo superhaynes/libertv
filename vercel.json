@@ -1,19 +1,7 @@
 {
   "functions": {
     "index": {
-      "includeFiles": [
-        "js/**",
-        "css/**",
-        "libs/**",
-        "image/**",
-        "*.html",
-        "*.js",
-        "*.mjs",
-        "*.json",
-        "*.txt",
-        "*.ico",
-        "*.png"
-      ]
+      "includeFiles": "js/**, css/**, libs/**, image/**, *.html, *.js, *.mjs, *.json, *.txt, *.ico, *.png"
     }
   },
   "rewrites": [
