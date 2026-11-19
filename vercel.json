@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "server.mjs": {
-      "includeFiles": "js/**, css/**, libs/**, image/**, *.html, *.js, *.mjs, *.json, *.txt, *.ico, *.png"
-    }
-  },
   "rewrites": [
     {
       "source": "/proxy/:path*",
