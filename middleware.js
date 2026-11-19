@@ -1,10 +1,16 @@
 import { sha256 } from './js/sha256.js'; // 需新建或引入SHA-256实现
 
+
 // Vercel Middleware to inject environment variables
 export default async function middleware(request) {
+  // 内部取回原始响应时带上标记，避免再次触发中间件导致无限循环（Vercel 508 INFINITE_LOOP）
+  if (request.headers.get('x-libretv-internal-fetch')) {
+    return; // Let the internal fetch pass through unchanged
+  }
+
   // Get the URL from the request
   const url = new URL(request.url);
-  
+
   // Only process HTML pages
   const isHtmlPage = url.pathname.endsWith('.html') || url.pathname.endsWith('/');
   if (!isHtmlPage) {
@@ -12,8 +18,13 @@ export default async function middleware(request) {
   }
 
   // Fetch the original response
-  const response = await fetch(request);
-  
+  // 注意：直接 fetch(request) 会再次经过中间件，造成无限循环；用请求头标记内部请求
+  const response = await fetch(request, {
+    headers: {
+      'x-libretv-internal-fetch': '1',
+    },
+  });
+
   // Check if it's an HTML response
   const contentType = response.headers.get('content-type') || '';
   if (!contentType.includes('text/html')) {
@@ -22,7 +33,7 @@ export default async function middleware(request) {
 
   // Get the HTML content
   const originalHtml = await response.text();
-  
+
   // Replace the placeholder with actual environment variable
   // If PASSWORD is not set, replace with empty string
   const password = process.env.PASSWORD || '';
@@ -34,25 +45,24 @@ export default async function middleware(request) {
   const adminpassword = process.env.ADMINPASSWORD || '';
   let adminpasswordHash = '';
   if (adminpassword) {
-    adminpasswordHash = await sha256(adminpassword); // 修复变量名
+    adminpasswordHash = await sha256(adminpassword);
   }
-  
+
   // 合并两次替换为一次操作
-  let modifiedHtml = originalHtml
-    .replace(
-      'window.__ENV__.PASSWORD = "{{PASSWORD}}";',
-      `window.__ENV__.PASSWORD = "${passwordHash}"; // SHA-256 hash`
-    )
-    .replace(
-      'window.__ENV__.ADMINPASSWORD = "{{ADMINPASSWORD}}";',
-      `window.__ENV__.ADMINPASSWORD = "${adminpasswordHash}"; // SHA-256 hash`
-    );
+  const modifiedHtml = originalHtml
+    .replace('{{PASSWORD_HASH}}', passwordHash)
+    .replace('{{ADMINPASSWORD_HASH}}', adminpasswordHash);
 
   // 修复Response构造
   return new Response(modifiedHtml, {
     status: response.status,
     statusText: response.statusText,
-    headers: response.headers
+    headers: {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0'
+    },
   });
 }
 
